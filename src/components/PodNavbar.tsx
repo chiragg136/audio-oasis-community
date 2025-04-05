@@ -1,104 +1,116 @@
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Headphones, User, Search, Menu, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Menu, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useMobile } from '@/hooks/use-mobile';
 
 const PodNavbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isMobile = useIsMobile();
+  const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
+  const isMobile = useMobile();
+  const location = useLocation();
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const navigationLinks = [
+    { name: "Explore", href: "/explore" },
+    { name: "Library", href: "/library" },
+    { name: "Community", href: "/community" },
+    { name: "Rooms", href: "/rooms" },
+  ];
+
+  const handleLoginClick = () => {
+    if (location.pathname !== '/login') {
+      // If not already on login page, toast a message
+      toast({
+        title: "Welcome Back!",
+        description: "Login to access your personalized podcast experience",
+      });
+    }
+  };
+
+  const toggleMenu = () => {
+    setIsOpen(!isOpen);
+  };
+
+  const navbarClasses = {
+    header: "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+    container: "pod-container flex h-16 items-center justify-between",
+    logoLink: "flex items-center gap-2 font-bold text-xl text-foreground",
+    desktopNav: "hidden md:flex ml-8 space-x-6",
+    navLink: `text-sm transition-colors hover:text-foreground ${location.pathname === '/explore' ? 'text-foreground font-medium' : 'text-muted-foreground'}`,
+    authButtons: "hidden md:flex gap-2",
+    mobileMenuButton: "md:hidden",
+    mobileNav: "md:hidden border-t",
+    mobileNavLink: `text-sm transition-colors py-2 px-3 rounded-md ${location.pathname === '/explore' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`,
+    mobileAuthButtons: "flex flex-col gap-2",
+  };
 
   return (
-    <nav className="bg-background border-b py-4 sticky top-0 z-50">
-      <div className="pod-container">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Link to="/" className="flex items-center">
-              <Headphones className="h-8 w-8 text-pod-purple" />
-              <span className="ml-2 text-xl font-bold bg-gradient-to-r from-pod-purple to-pod-blue bg-clip-text text-transparent">
-                PodVilla
-              </span>
-            </Link>
-          </div>
-
+    <header className={navbarClasses.header}>
+      <div className={navbarClasses.container}>
+        <div className="flex items-center">
+          <Link to="/" className={navbarClasses.logoLink}>
+            <span className="text-pod-purple">Pod</span>Villa
+          </Link>
+          
           {/* Desktop Navigation */}
-          <div className={cn("hidden md:flex items-center space-x-6")}>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search podcasts..."
-                className="pl-10 pr-4 py-2 rounded-full bg-secondary/50 hover:bg-secondary focus:bg-secondary focus:outline-none focus:ring-2 focus:ring-pod-purple w-64 transition-all"
-              />
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" asChild>
-                <Link to="/explore">Explore</Link>
-              </Button>
-              <Button variant="ghost" asChild>
-                <Link to="/library">Library</Link>
-              </Button>
-              <Button variant="ghost" asChild>
-                <Link to="/community">Community</Link>
-              </Button>
-              <div className="w-px h-6 bg-border" />
-              <Button variant="outline" className="gap-2" asChild>
-                <Link to="/login">
-                  <User className="h-4 w-4" />
-                  <span>Login</span>
-                </Link>
-              </Button>
-              <Button className="bg-pod-purple hover:bg-pod-purple-dark" asChild>
-                <Link to="/register">Sign Up</Link>
-              </Button>
-            </div>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <Button variant="ghost" size="icon" onClick={toggleMenu}>
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
-          </div>
+          <nav className={navbarClasses.desktopNav}>
+            {navigationLinks.map(link => (
+              <Link
+                key={link.name}
+                to={link.href}
+                className={`text-sm transition-colors hover:text-foreground ${location.pathname === link.href ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+              >
+                {link.name}
+              </Link>
+            ))}
+          </nav>
         </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="mt-4 md:hidden animate-fade-in">
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search podcasts..."
-                className="pl-10 pr-4 py-2 rounded-full bg-secondary/50 w-full"
-              />
-            </div>
-            <div className="flex flex-col space-y-2">
-              <Link to="/explore" className="p-2 hover:bg-secondary rounded-md">
-                Explore
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex gap-2">
+            <Button variant="ghost" size="sm" asChild onClick={handleLoginClick}>
+              <Link to="/login">Login</Link>
+            </Button>
+            <Button size="sm" className="bg-pod-purple hover:bg-pod-purple-dark" asChild>
+              <Link to="/register">Sign Up</Link>
+            </Button>
+          </div>
+          
+          <Button variant="outline" size="icon" className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
+            {isOpen ? <X /> : <Menu />}
+          </Button>
+        </div>
+      </div>
+      
+      {/* Mobile Navigation */}
+      {isOpen && (
+        <div className="md:hidden border-t">
+          <nav className="flex flex-col p-4 space-y-3">
+            {navigationLinks.map(link => (
+              <Link
+                key={link.name}
+                to={link.href}
+                className={`text-sm transition-colors py-2 px-3 rounded-md ${location.pathname === link.href ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+                onClick={() => setIsOpen(false)}
+              >
+                {link.name}
               </Link>
-              <Link to="/library" className="p-2 hover:bg-secondary rounded-md">
-                Library
-              </Link>
-              <Link to="/community" className="p-2 hover:bg-secondary rounded-md">
-                Community
-              </Link>
-              <div className="h-px w-full bg-border my-2" />
-              <Link to="/login" className="p-2 hover:bg-secondary rounded-md">
-                Login
-              </Link>
-              <Button className="bg-pod-purple hover:bg-pod-purple-dark" asChild>
+            ))}
+            <hr className="my-2" />
+            <div className="flex flex-col gap-2">
+              <Button variant="ghost" size="sm" asChild onClick={handleLoginClick}>
+                <Link to="/login" onClick={() => setIsOpen(false)}>Login</Link>
+              </Button>
+              <Button size="sm" className="bg-pod-purple hover:bg-pod-purple-dark" asChild onClick={() => setIsOpen(false)}>
                 <Link to="/register">Sign Up</Link>
               </Button>
             </div>
-          </div>
-        )}
-      </div>
-    </nav>
+          </nav>
+        </div>
+      )}
+    </header>
   );
 };
 

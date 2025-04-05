@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import PodNavbar from '@/components/PodNavbar';
 import PodFooter from '@/components/PodFooter';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -148,6 +149,14 @@ const CommunityPage = () => {
             </TabsContent>
             
             <TabsContent value="rooms">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Popular Podcast Rooms</h2>
+                <Button asChild className="bg-pod-purple hover:bg-pod-purple-dark">
+                  <Link to="/rooms">
+                    View All Rooms
+                  </Link>
+                </Button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                 {podcastRooms.map((room) => (
                   <Card key={room.id} className="overflow-hidden">
@@ -173,8 +182,14 @@ const CommunityPage = () => {
                         <Users className="h-4 w-4 mr-1" />
                         {room.participants} participants
                       </div>
-                      <Button size="sm" className={room.status === 'Live' ? 'bg-red-500 hover:bg-red-600' : 'bg-pod-purple hover:bg-pod-purple-dark'}>
-                        {room.status === 'Live' ? 'Join Room' : 'Set Reminder'}
+                      <Button 
+                        size="sm" 
+                        className={room.status === 'Live' ? 'bg-red-500 hover:bg-red-600' : 'bg-pod-purple hover:bg-pod-purple-dark'}
+                        asChild
+                      >
+                        <Link to="/rooms">
+                          {room.status === 'Live' ? 'Join Room' : 'Set Reminder'}
+                        </Link>
                       </Button>
                     </CardFooter>
                   </Card>
