@@ -16,9 +16,31 @@ const categories = [
   { name: "Sports", color: "bg-orange-500", count: 261 },
 ];
 
+const LOCAL_STORAGE_KEY = "podvilla_uploaded_podcasts";
+
 const CategorySection = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Update category counts based on uploaded podcasts
+  const categoryCounts = () => {
+    const storedPodcasts = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+    
+    // Create a map of category counts from stored podcasts
+    const userCategoryCounts = storedPodcasts.reduce((acc: Record<string, number>, podcast: any) => {
+      const category = podcast.category?.toLowerCase();
+      if (category) {
+        acc[category] = (acc[category] || 0) + 1;
+      }
+      return acc;
+    }, {});
+    
+    // Return updated categories with new counts
+    return categories.map(category => ({
+      ...category,
+      count: category.count + (userCategoryCounts[category.name.toLowerCase()] || 0)
+    }));
+  };
   
   const handleCategoryClick = (category: string) => {
     navigate(`/explore?category=${category.toLowerCase()}`);
@@ -41,7 +63,7 @@ const CategorySection = () => {
         </div>
         
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {categories.map((category, index) => (
+          {categoryCounts().map((category, index) => (
             <div 
               key={index}
               onClick={() => handleCategoryClick(category.name)}

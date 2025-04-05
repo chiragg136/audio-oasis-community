@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
 
 // Sample data for explore page
-const explorePodcasts: PodcastCardProps[] = [
+const samplePodcasts: PodcastCardProps[] = [
   {
     id: "6",
     title: "Marketing Mastery",
@@ -72,10 +72,14 @@ const explorePodcasts: PodcastCardProps[] = [
   }
 ];
 
+// Local storage key for uploaded podcasts
+const LOCAL_STORAGE_KEY = "podvilla_uploaded_podcasts";
+
 const ExplorePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('trending');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [userPodcasts, setUserPodcasts] = useState<any[]>([]);
   const location = useLocation();
   
   // Parse the category from URL query parameters
@@ -87,8 +91,38 @@ const ExplorePage = () => {
     }
   }, [location.search]);
   
+  // Load user-uploaded podcasts from localStorage
+  useEffect(() => {
+    const loadUserPodcasts = () => {
+      const storedPodcasts = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedPodcasts) {
+        const parsedPodcasts = JSON.parse(storedPodcasts);
+        setUserPodcasts(parsedPodcasts);
+      }
+    };
+    
+    loadUserPodcasts();
+    
+    // Listen for storage events to update when podcasts are added in other tabs
+    window.addEventListener('storage', loadUserPodcasts);
+    
+    return () => {
+      window.removeEventListener('storage', loadUserPodcasts);
+    };
+  }, []);
+  
+  // Combine sample podcasts with user-uploaded podcasts
+  const allPodcasts = [...userPodcasts.map(podcast => ({
+    id: podcast.id,
+    title: podcast.title,
+    creator: podcast.creator,
+    coverImage: podcast.coverImage || "https://images.unsplash.com/photo-1500673922987-e212871fec22?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+    category: podcast.category,
+    isNew: true,
+  })), ...samplePodcasts];
+  
   // Filter podcasts based on search term and category
-  const filteredPodcasts = explorePodcasts.filter(podcast => {
+  const filteredPodcasts = allPodcasts.filter(podcast => {
     const matchesSearch = searchTerm === '' || 
       podcast.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       podcast.creator.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -146,6 +180,25 @@ const ExplorePage = () => {
               <Button variant="outline" size="sm" onClick={clearCategory}>
                 Clear filter
               </Button>
+            </div>
+          )}
+
+          {userPodcasts.length > 0 && (
+            <div className="mb-10">
+              <h2 className="text-2xl font-bold mb-4">Your Uploads</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {userPodcasts.map((podcast) => (
+                  <PodcastCard 
+                    key={podcast.id}
+                    id={podcast.id}
+                    title={podcast.title}
+                    creator={podcast.creator}
+                    coverImage={podcast.coverImage || "https://images.unsplash.com/photo-1500673922987-e212871fec22?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"}
+                    category={podcast.category}
+                    isNew={true}
+                  />
+                ))}
+              </div>
             </div>
           )}
           

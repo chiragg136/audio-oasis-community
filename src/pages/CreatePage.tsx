@@ -4,18 +4,26 @@ import PodNavbar from '@/components/PodNavbar';
 import PodFooter from '@/components/PodFooter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Mic, Video, FileAudio, PlusCircle, MessageSquare, HeartHandshake, Users, Loader2 } from "lucide-react";
+import { Upload, Mic, Video, FileAudio, PlusCircle, MessageSquare, HeartHandshake, Users, Loader2, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useNavigate } from "react-router-dom";
+
+// Mock database for uploaded podcasts
+const LOCAL_STORAGE_KEY = "podvilla_uploaded_podcasts";
 
 const CreatePage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadType, setUploadType] = useState<'audio' | 'video' | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   
   const form = useForm({
     defaultValues: {
@@ -35,6 +43,22 @@ const CreatePage = () => {
     }
   };
   
+  const handleCoverImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setCoverImage(file);
+      
+      // Create a preview URL for the image
+      const previewUrl = URL.createObjectURL(file);
+      setCoverImagePreview(previewUrl);
+      
+      toast({
+        title: "Cover image selected",
+        description: "Your podcast cover image has been selected",
+      });
+    }
+  };
+  
   const handleUploadClick = (type: 'audio' | 'video') => {
     setUploadType(type);
     // Create a file input and trigger it
@@ -42,6 +66,14 @@ const CreatePage = () => {
     fileInput.type = 'file';
     fileInput.accept = type === 'audio' ? 'audio/*' : 'video/*';
     fileInput.onchange = handleFileChange as any;
+    fileInput.click();
+  };
+  
+  const handleCoverImageClick = () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.onchange = handleCoverImageChange as any;
     fileInput.click();
   };
   
@@ -55,10 +87,43 @@ const CreatePage = () => {
       return;
     }
     
+    if (!coverImage) {
+      toast({
+        title: "No cover image selected",
+        description: "Please select a cover image for your podcast",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsUploading(true);
+    
+    // Generate a unique ID for the podcast
+    const podcastId = `podcast_${Date.now()}`;
     
     // Simulate upload process
     setTimeout(() => {
+      // In a real app, we would upload to a server here
+      
+      // Save podcast data to local storage (simulating a database)
+      const newPodcast = {
+        id: podcastId,
+        title: values.title,
+        description: values.description,
+        category: values.category,
+        creator: "Current User", // In a real app, this would be the logged-in user
+        coverImage: coverImagePreview,
+        mediaType: uploadType,
+        uploadDate: new Date().toISOString(),
+        fileName: selectedFile.name,
+      };
+      
+      // Get existing podcasts or initialize empty array
+      const existingPodcasts = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+      
+      // Add new podcast and save back to localStorage
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([newPodcast, ...existingPodcasts]));
+      
       setIsUploading(false);
       toast({
         title: "Upload Successful!",
@@ -69,6 +134,11 @@ const CreatePage = () => {
       form.reset();
       setSelectedFile(null);
       setUploadType(null);
+      setCoverImage(null);
+      setCoverImagePreview(null);
+      
+      // Redirect to explore page to see the new podcast
+      navigate("/explore");
     }, 2000);
   };
   
@@ -183,13 +253,45 @@ const CreatePage = () => {
                 </Card>
               </div>
               
-              {selectedFile && (
+              {(selectedFile || coverImage) && (
                 <Card className="mt-6">
                   <CardHeader>
                     <CardTitle>Podcast Details</CardTitle>
                     <CardDescription>Tell us more about your podcast</CardDescription>
                   </CardHeader>
                   <CardContent>
+                    <div className="mb-6">
+                      <h3 className="font-medium mb-2">Cover Image</h3>
+                      <div 
+                        className="border-2 border-dashed border-border rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-pod-purple transition-colors"
+                        onClick={handleCoverImageClick}
+                      >
+                        {coverImagePreview ? (
+                          <div className="relative w-32 h-32 mb-4">
+                            <img 
+                              src={coverImagePreview} 
+                              alt="Cover Preview" 
+                              className="w-full h-full object-cover rounded-md"
+                            />
+                          </div>
+                        ) : (
+                          <ImageIcon className="h-10 w-10 text-muted-foreground mb-4" />
+                        )}
+                        <p className="text-center text-sm text-muted-foreground mb-4">
+                          {coverImage ? `Selected: ${coverImage.name}` : 'Add a cover image for your podcast'}
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCoverImageClick();
+                          }}
+                        >
+                          {coverImage ? "Change Cover Image" : "Select Cover Image"}
+                        </Button>
+                      </div>
+                    </div>
+                    
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                         <FormField
@@ -213,7 +315,7 @@ const CreatePage = () => {
                             <FormItem>
                               <FormLabel>Description</FormLabel>
                               <FormControl>
-                                <Input placeholder="Enter podcast description" {...field} />
+                                <Textarea placeholder="Enter podcast description" className="resize-none" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
