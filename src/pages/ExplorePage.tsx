@@ -1,11 +1,14 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PodNavbar from '@/components/PodNavbar';
 import PodFooter from '@/components/PodFooter';
 import PodcastCard, { PodcastCardProps } from '@/components/PodcastCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Filter } from "lucide-react";
+import { useLocation } from 'react-router-dom';
+import { Badge } from "@/components/ui/badge";
+import { Button } from '@/components/ui/button';
 
 // Sample data for explore page
 const explorePodcasts: PodcastCardProps[] = [
@@ -70,6 +73,55 @@ const explorePodcasts: PodcastCardProps[] = [
 ];
 
 const ExplorePage = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('trending');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const location = useLocation();
+  
+  // Parse the category from URL query parameters
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const category = queryParams.get('category');
+    if (category) {
+      setActiveCategory(category);
+    }
+  }, [location.search]);
+  
+  // Filter podcasts based on search term and category
+  const filteredPodcasts = explorePodcasts.filter(podcast => {
+    const matchesSearch = searchTerm === '' || 
+      podcast.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      podcast.creator.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      podcast.category.toLowerCase().includes(searchTerm.toLowerCase());
+      
+    const matchesCategory = !activeCategory || 
+      podcast.category.toLowerCase() === activeCategory.toLowerCase();
+      
+    return matchesSearch && matchesCategory;
+  });
+  
+  const getTabPodcasts = (tab: string) => {
+    switch(tab) {
+      case 'new':
+        return filteredPodcasts.filter(p => p.isNew);
+      case 'popular':
+        return filteredPodcasts.slice(0, 4);
+      case 'recommended':
+        return filteredPodcasts.slice(2, 6);
+      case 'trending':
+      default:
+        return filteredPodcasts;
+    }
+  };
+  
+  const clearCategory = () => {
+    setActiveCategory(null);
+    // Update URL to remove category parameter
+    const url = new URL(window.location.href);
+    url.searchParams.delete('category');
+    window.history.pushState({}, '', url.toString());
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <PodNavbar />
@@ -82,10 +134,22 @@ const ExplorePage = () => {
             <Input
               placeholder="Search podcasts, creators, or topics..."
               className="pl-10 py-6"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           
-          <Tabs defaultValue="trending" className="mb-8">
+          {activeCategory && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-muted-foreground">Filtered by category:</span>
+              <Badge className="capitalize bg-pod-purple">{activeCategory}</Badge>
+              <Button variant="outline" size="sm" onClick={clearCategory}>
+                Clear filter
+              </Button>
+            </div>
+          )}
+          
+          <Tabs defaultValue="trending" value={activeTab} onValueChange={setActiveTab} className="mb-8">
             <TabsList className="w-full max-w-md mx-auto grid grid-cols-4">
               <TabsTrigger value="trending">Trending</TabsTrigger>
               <TabsTrigger value="new">New</TabsTrigger>
@@ -94,28 +158,28 @@ const ExplorePage = () => {
             </TabsList>
             <TabsContent value="trending">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                {explorePodcasts.map((podcast) => (
+                {getTabPodcasts('trending').map((podcast) => (
                   <PodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
             </TabsContent>
             <TabsContent value="new">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                {explorePodcasts.filter(p => p.isNew).map((podcast) => (
+                {getTabPodcasts('new').map((podcast) => (
                   <PodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
             </TabsContent>
             <TabsContent value="popular">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                {explorePodcasts.slice(0, 4).map((podcast) => (
+                {getTabPodcasts('popular').map((podcast) => (
                   <PodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
             </TabsContent>
             <TabsContent value="recommended">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                {explorePodcasts.slice(2, 6).map((podcast) => (
+                {getTabPodcasts('recommended').map((podcast) => (
                   <PodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
