@@ -26,20 +26,23 @@ export function useMediaUpload() {
       
       const filePath = `${type === 'image' ? 'covers' : type}/${fileName}`;
       
+      // Track upload progress manually
+      const options = {
+        cacheControl: '3600',
+        upsert: false,
+      };
+      
+      // Perform the upload
       const { error: uploadError, data } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: (progress) => {
-            const percent = progress.percent ? Math.round(progress.percent) : 0;
-            setProgress(percent);
-          }
-        });
+        .upload(filePath, file, options);
 
       if (uploadError) {
         throw uploadError;
       }
+      
+      // Set progress to 100% after successful upload
+      setProgress(100);
       
       // Get public URL
       const { data: urlData } = await supabase.storage
