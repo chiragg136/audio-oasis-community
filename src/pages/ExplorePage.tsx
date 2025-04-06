@@ -6,9 +6,10 @@ import PodcastCard, { PodcastCardProps } from '@/components/PodcastCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Search, Filter } from "lucide-react";
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
+import supabase from '@/lib/supabase';
 
 // Sample data for explore page
 const samplePodcasts: PodcastCardProps[] = [
@@ -91,31 +92,64 @@ const ExplorePage = () => {
     }
   }, [location.search]);
   
-  // Load user-uploaded podcasts from localStorage
+  // Load user-uploaded podcasts from localStorage and update URLs from Supabase
   useEffect(() => {
-    const loadUserPodcasts = () => {
+    const loadUserPodcasts = async () => {
       const storedPodcasts = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedPodcasts) {
         const parsedPodcasts = JSON.parse(storedPodcasts);
-        setUserPodcasts(parsedPodcasts);
+        
+        // Update any URLs that need refreshing from Supabase
+        const updatedPodcasts = await Promise.all(
+          parsedPodcasts.map(async (podcast: any) => {
+            // If the podcast has stored paths but URLs might be expired
+            if (podcast.filePath) {
+              try {
+                // Get fresh URL for media file
+                const { data: mediaData } = await supabase.storage
+                  .from('podcasts')
+                  .createSignedUrl(podcast.filePath, 3600);
+                
+                if (mediaData?.signedUrl) {
+                  podcast.fileUrl = mediaData.signedUrl;
+                }
+              } catch (error) {
+                console.error("Error refreshing media URL:", error);
+              }
+            }
+            
+            return podcast;
+          })
+        );
+        
+        setUserPodcasts(updatedPodcasts);
       }
     };
     
     loadUserPodcasts();
     
     // Listen for storage events to update when podcasts are added in other tabs
-    window.addEventListener('storage', loadUserPodcasts);
+    window.addEventListener('storage', () => loadUserPodcasts());
     
     return () => {
-      window.removeEventListener('storage', loadUserPodcasts);
+      window.removeEventListener('storage', () => loadUserPodcasts());
     };
   }, []);
+  
+  // Enhanced PodcastCard with link to podcast page
+  const EnhancedPodcastCard = (props: PodcastCardProps) => {
+    return (
+      <Link to={`/podcast/${props.id}`} className="block">
+        <PodcastCard {...props} />
+      </Link>
+    );
+  };
   
   // Combine sample podcasts with user-uploaded podcasts
   const allPodcasts = [...userPodcasts.map(podcast => ({
     id: podcast.id,
     title: podcast.title,
-    creator: podcast.creator,
+    creator: podcast.creator || "Anonymous",
     coverImage: podcast.coverImage || "https://images.unsplash.com/photo-1500673922987-e212871fec22?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
     category: podcast.category,
     isNew: true,
@@ -188,11 +222,11 @@ const ExplorePage = () => {
               <h2 className="text-2xl font-bold mb-4">Your Uploads</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {userPodcasts.map((podcast) => (
-                  <PodcastCard 
+                  <EnhancedPodcastCard 
                     key={podcast.id}
                     id={podcast.id}
                     title={podcast.title}
-                    creator={podcast.creator}
+                    creator={podcast.creator || "Anonymous"}
                     coverImage={podcast.coverImage || "https://images.unsplash.com/photo-1500673922987-e212871fec22?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"}
                     category={podcast.category}
                     isNew={true}
@@ -212,28 +246,28 @@ const ExplorePage = () => {
             <TabsContent value="trending">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                 {getTabPodcasts('trending').map((podcast) => (
-                  <PodcastCard key={podcast.id} {...podcast} />
+                  <EnhancedPodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
             </TabsContent>
             <TabsContent value="new">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                 {getTabPodcasts('new').map((podcast) => (
-                  <PodcastCard key={podcast.id} {...podcast} />
+                  <EnhancedPodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
             </TabsContent>
             <TabsContent value="popular">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                 {getTabPodcasts('popular').map((podcast) => (
-                  <PodcastCard key={podcast.id} {...podcast} />
+                  <EnhancedPodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
             </TabsContent>
             <TabsContent value="recommended">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                 {getTabPodcasts('recommended').map((podcast) => (
-                  <PodcastCard key={podcast.id} {...podcast} />
+                  <EnhancedPodcastCard key={podcast.id} {...podcast} />
                 ))}
               </div>
             </TabsContent>

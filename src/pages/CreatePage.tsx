@@ -12,6 +12,8 @@ import { useForm } from "react-hook-form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
+import { Progress } from "@/components/ui/progress";
+import { useMediaUpload } from "@/hooks/use-media-upload";
 
 // Mock database for uploaded podcasts
 const LOCAL_STORAGE_KEY = "podvilla_uploaded_podcasts";
@@ -19,11 +21,11 @@ const LOCAL_STORAGE_KEY = "podvilla_uploaded_podcasts";
 const CreatePage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [isUploading, setIsUploading] = useState(false);
   const [uploadType, setUploadType] = useState<'audio' | 'video' | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const { uploadMedia, isUploading, progress } = useMediaUpload();
   
   const form = useForm({
     defaultValues: {
@@ -77,7 +79,7 @@ const CreatePage = () => {
     fileInput.click();
   };
   
-  const handleSubmit = (values: { title: string; description: string; category: string }) => {
+  const handleSubmit = async (values: { title: string; description: string; category: string }) => {
     if (!selectedFile) {
       toast({
         title: "No file selected",
@@ -95,15 +97,34 @@ const CreatePage = () => {
       });
       return;
     }
-    
-    setIsUploading(true);
-    
-    // Generate a unique ID for the podcast
-    const podcastId = `podcast_${Date.now()}`;
-    
-    // Simulate upload process
-    setTimeout(() => {
-      // In a real app, we would upload to a server here
+
+    try {
+      // Upload media file to Supabase
+      const mediaResult = await uploadMedia(selectedFile, uploadType || 'audio');
+      
+      if (!mediaResult) {
+        toast({
+          title: "Upload failed",
+          description: "There was a problem uploading your media file",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Upload cover image to Supabase
+      const imageResult = await uploadMedia(coverImage, 'image');
+      
+      if (!imageResult) {
+        toast({
+          title: "Cover upload failed",
+          description: "There was a problem uploading your cover image",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Generate a unique ID for the podcast
+      const podcastId = `podcast_${Date.now()}`;
       
       // Save podcast data to local storage (simulating a database)
       const newPodcast = {
@@ -112,10 +133,12 @@ const CreatePage = () => {
         description: values.description,
         category: values.category,
         creator: "Current User", // In a real app, this would be the logged-in user
-        coverImage: coverImagePreview,
+        coverImage: imageResult.url,
         mediaType: uploadType,
         uploadDate: new Date().toISOString(),
         fileName: selectedFile.name,
+        filePath: mediaResult.filePath,
+        fileUrl: mediaResult.url,
       };
       
       // Get existing podcasts or initialize empty array
@@ -124,7 +147,6 @@ const CreatePage = () => {
       // Add new podcast and save back to localStorage
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([newPodcast, ...existingPodcasts]));
       
-      setIsUploading(false);
       toast({
         title: "Upload Successful!",
         description: `Your podcast "${values.title}" has been uploaded.`,
@@ -137,9 +159,16 @@ const CreatePage = () => {
       setCoverImage(null);
       setCoverImagePreview(null);
       
-      // Redirect to explore page to see the new podcast
-      navigate("/explore");
-    }, 2000);
+      // Redirect to podcast detail page
+      navigate(`/podcast/${podcastId}`);
+    } catch (error) {
+      console.error("Error during upload:", error);
+      toast({
+        title: "Upload failed",
+        description: "There was an unexpected error during the upload process",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleLiveStream = (type: 'audio' | 'video') => {
@@ -154,6 +183,7 @@ const CreatePage = () => {
         title: "You're Live!",
         description: "Your audience can now join your broadcast.",
       });
+      navigate('/rooms');
     }, 1500);
   };
   
@@ -168,6 +198,7 @@ const CreatePage = () => {
         title: "Room Created!",
         description: "Your podcast room is now available. Share the link to invite others.",
       });
+      navigate('/rooms');
     }, 1500);
   };
 
@@ -350,6 +381,15 @@ const CreatePage = () => {
                           )}
                         />
                         
+                        {isUploading && (
+                          <div className="space-y-2">
+                            <Progress value={progress} className="h-2" />
+                            <p className="text-sm text-center text-muted-foreground">
+                              Uploading... {progress}%
+                            </p>
+                          </div>
+                        )}
+                        
                         <Button 
                           type="submit" 
                           className="bg-pod-purple hover:bg-pod-purple-dark w-full"
@@ -417,6 +457,7 @@ const CreatePage = () => {
                         title: "Comments Loaded",
                         description: "Now showing your latest podcast comments",
                       });
+                      navigate('/community');
                     }}>
                       View Comments
                     </Button>
