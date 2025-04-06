@@ -33,7 +33,7 @@ export function useMediaUpload() {
       };
       
       // Perform the upload
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filePath, file, options);
 
@@ -44,16 +44,16 @@ export function useMediaUpload() {
       // Set progress to 100% after successful upload
       setProgress(100);
       
-      // Get public URL
-      const { data: urlData } = await supabase.storage
+      // Get public URL for direct access instead of signed URL
+      const { data: publicUrlData } = supabase.storage
         .from(bucket)
-        .createSignedUrl(filePath, 3600);
+        .getPublicUrl(filePath);
       
       setIsUploading(false);
       
       return {
         filePath: filePath,
-        url: urlData?.signedUrl || null
+        url: publicUrlData?.publicUrl || null
       };
     } catch (error: any) {
       setIsUploading(false);
